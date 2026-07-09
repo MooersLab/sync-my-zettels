@@ -18,6 +18,23 @@
 (require 'json)
 (require 'cl-lib)
 
+(defmacro smz--headless (&rest body)
+  "Run BODY so it can never block on input.
+The debugger is disabled (so the caller's `debug-on-error' cannot pop a
+recursive edit and freeze the daemon) and the interactive yes/no prompts
+are turned into errors, so an unexpected confirmation surfaces as a caught
+error with its prompt text instead of hanging. Any real error still
+propagates to the caller's `condition-case'."
+  `(let ((debug-on-error nil)
+         (debug-on-quit nil))
+     (cl-letf (((symbol-function 'y-or-n-p)
+                (lambda (prompt &rest _)
+                  (error "unexpected interactive prompt: %s" prompt)))
+               ((symbol-function 'yes-or-no-p)
+                (lambda (prompt &rest _)
+                  (error "unexpected interactive prompt: %s" prompt))))
+       ,@body)))
+
 (defun smz-normalize-apply (request-file result-file autoslip-path)
   "Apply the normalize plan in REQUEST-FILE, writing results to RESULT-FILE.
 AUTOSLIP-PATH is loaded to make the autoslip-roam commands available.
@@ -75,11 +92,13 @@ never has to distinguish a crash from a silent no-op."
                                             cur old-address))))
                        ((string= mode "subtree")
                         (let ((n (length (autoslip-roam--descendants-of cur))))
-                          (autoslip-roam-reparent-subtree new-address)
+                          (smz--headless
+                           (autoslip-roam-reparent-subtree new-address))
                           (list (cons 'status "applied")
                                 (cons 'descendants n))))
                        (t
-                        (autoslip-roam-reparent new-address)
+                        (smz--headless
+                         (autoslip-roam-reparent new-address))
                         (list (cons 'status "applied")
                               (cons 'descendants 0))))))
                 (error (list (cons 'status "error")
