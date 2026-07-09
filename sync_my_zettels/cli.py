@@ -22,7 +22,7 @@ from .config import (
     DEFAULT_EMACS_SOCKET,
     DEFAULT_AUTOSLIP_ROAM_EL,
 )
-from . import inventory, roots, matching, assign, normalize, port, links, verify
+from . import inventory, roots, matching, assign, assign_apply, normalize, port, links, verify
 
 
 PHASES: dict[str, Callable[[Config], dict]] = {
@@ -30,6 +30,7 @@ PHASES: dict[str, Callable[[Config], dict]] = {
     "roots": roots.run,
     "match": matching.run,
     "assign": assign.run,
+    "assign-apply": assign_apply.run,
     "normalize": normalize.run,
     "port": port.run,
     "repair-links": links.run,
@@ -137,6 +138,18 @@ def _print_summary(phase: str, result: dict, config: Config) -> None:
         )
     elif phase == "assign":
         print(f"generated {len(result['proposals'])} assignment proposals")
+    elif phase == "assign-apply":
+        if result["apply"]:
+            print(
+                f"assign-apply: applied {len(result['applied'])}, "
+                f"skipped {len(result['skipped'])}"
+            )
+        else:
+            n = sum(1 for r in result["plan"] if r.get("action") == "assign")
+            print(
+                f"assign-apply dry run: {n} would get a first folgezettel, "
+                f"{len(result['skipped'])} skipped"
+            )
     elif phase == "normalize":
         if result["apply"]:
             print(
