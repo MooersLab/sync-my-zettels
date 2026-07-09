@@ -7,6 +7,7 @@ config file at ~/.sync-my-zettels/config.toml.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +19,14 @@ DEFAULT_ORG_ROAM_VAULT = HOME / "org-roam"
 DEFAULT_ROOT_INDEX_FILE = DEFAULT_OBSIDIAN_VAULT / "00.0 Index of indices.md"
 DEFAULT_STATE_DIR = HOME / ".sync-my-zettels"
 
+# The normalize apply phase drives a running Emacs daemon (autoslip-roam
+# does the actual renaming). The socket name and the path to autoslip-roam.el
+# are resolved here so the CLI can override them.
+DEFAULT_EMACS_SOCKET = os.environ.get("EMACS_SOCKET_NAME", "fallef")
+DEFAULT_AUTOSLIP_ROAM_EL = (
+    HOME / "6112MooersLabGitHubLabRepos" / "autoslip-roam" / "autoslip-roam.el"
+)
+
 
 @dataclass(frozen=True)
 class Config:
@@ -28,6 +37,8 @@ class Config:
     root_index_file: Path = DEFAULT_ROOT_INDEX_FILE
     state_dir: Path = DEFAULT_STATE_DIR
     apply: bool = False
+    emacs_socket: str = DEFAULT_EMACS_SOCKET
+    autoslip_roam_el: Path = DEFAULT_AUTOSLIP_ROAM_EL
 
     def inventory_path(self) -> Path:
         return self.state_dir / "inventory.json"

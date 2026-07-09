@@ -19,6 +19,8 @@ from .config import (
     DEFAULT_ORG_ROAM_VAULT,
     DEFAULT_ROOT_INDEX_FILE,
     DEFAULT_STATE_DIR,
+    DEFAULT_EMACS_SOCKET,
+    DEFAULT_AUTOSLIP_ROAM_EL,
 )
 from . import inventory, roots, matching, assign, normalize, port, links, verify
 
@@ -70,6 +72,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="directory for JSON checkpoints between phases",
     )
     parser.add_argument(
+        "--emacs-socket",
+        default=DEFAULT_EMACS_SOCKET,
+        help="Emacs server socket name for the normalize apply phase",
+    )
+    parser.add_argument(
+        "--autoslip-roam-el",
+        type=Path,
+        default=DEFAULT_AUTOSLIP_ROAM_EL,
+        help="path to autoslip-roam.el loaded by the normalize apply phase",
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="apply the phase's proposed changes (default: dry run)",
@@ -91,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
         root_index_file=args.root_index,
         state_dir=args.state_dir,
         apply=args.apply,
+        emacs_socket=args.emacs_socket,
+        autoslip_roam_el=args.autoslip_roam_el,
     )
     try:
         result = PHASES[args.phase](config)
@@ -123,8 +138,18 @@ def _print_summary(phase: str, result: dict, config: Config) -> None:
     elif phase == "assign":
         print(f"generated {len(result['proposals'])} assignment proposals")
     elif phase == "normalize":
-        action = "would change" if not result["apply"] else "changed"
-        print(f"{action} {len(result['plan'])} org-roam notes")
+        if result["apply"]:
+            print(
+                f"normalize: applied {len(result['applied'])}, "
+                f"skipped {len(result['skipped'])} "
+                f"({len(result['groups'])} groups)"
+            )
+        else:
+            print(
+                f"normalize dry run: {len(result['groups'])} groups from "
+                f"{len(result['plan'])} plan rows "
+                f"({len(result['skipped'])} unsupported)"
+            )
     elif phase == "port":
         action = "would port" if not result["apply"] else "ported"
         print(f"{action} {len(result['plan'])} notes")
