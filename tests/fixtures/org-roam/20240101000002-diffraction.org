@@ -1,0 +1,7 @@
+:PROPERTIES:
+:ID:       AAAAAAAA-0000-0000-0000-000000000002
+:END:
+#+title: 1.1 Diffraction
+
+Subtopic under crystallography. Linked to
+[[id:AAAAAAAA-0000-0000-0000-000000000001][parent]].

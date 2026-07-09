@@ -1,0 +1,10 @@
+{
+  "name": "sync-my-zettels",
+  "version": "0.1.0",
+  "description": "Reconcile an Obsidian vault and an org-roam zettelkasten under a shared folgezettel hierarchy.",
+  "author": {
+    "name": "Blaine Mooers",
+    "email": "blaine-mooers@ou.edu"
+  },
+  "homepage": "https://github.com/MooersLab/sync-my-zettels"
+}

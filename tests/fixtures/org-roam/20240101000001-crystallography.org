@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       AAAAAAAA-0000-0000-0000-000000000001
+:END:
+#+title: 1 Crystallography
+
+Root node for crystallography notes (legacy bare-integer title).

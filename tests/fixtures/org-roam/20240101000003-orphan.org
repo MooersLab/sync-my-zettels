@@ -1,0 +1,6 @@
+:PROPERTIES:
+:ID:       AAAAAAAA-0000-0000-0000-000000000003
+:END:
+#+title: Orphan note about writing
+
+Unindexed note; should be classified into the "7. Writing" root.

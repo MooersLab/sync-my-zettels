@@ -1,0 +1,32 @@
+{
+  "name": "sync-my-zettels",
+  "owner": {
+    "name": "Blaine Mooers",
+    "email": "blaine-mooers@ou.edu",
+    "url": "https://github.com/MooersLab"
+  },
+  "description": "Single-plugin marketplace that ships sync-my-zettels, a reconciler for an Obsidian vault and an org-roam zettelkasten sharing a folgezettel hierarchy.",
+  "plugins": [
+    {
+      "name": "sync-my-zettels",
+      "source": "./plugin",
+      "description": "Reconcile an Obsidian vault and an org-roam zettelkasten under a shared folgezettel hierarchy. Exposes eight slash commands (inventory, roots, match, assign, normalize, port, repair-links, verify) plus two skills (classify-orphan-note, review-ported-note) that front the sync-my-zettels Python CLI.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Blaine Mooers",
+        "email": "blaine-mooers@ou.edu"
+      },
+      "homepage": "https://github.com/MooersLab/sync-my-zettels",
+      "license": "GPL-3.0-or-later",
+      "category": "knowledge-management",
+      "tags": [
+        "obsidian",
+        "org-roam",
+        "zettelkasten",
+        "folgezettel",
+        "autoslip-roam"
+      ],
+      "strict": false
+    }
+  ]
+}

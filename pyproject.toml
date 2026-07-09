@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sync-my-zettels"
+version = "0.1.0"
+description = "Reconcile an Obsidian vault and an org-roam zettelkasten under a shared folgezettel hierarchy."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+  {name = "Blaine Mooers", email = "blaine-mooers@ou.edu"},
+]
+keywords = ["zettelkasten", "obsidian", "org-roam", "folgezettel", "autoslip"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: OS Independent",
+  "Topic :: Text Processing :: Markup",
+]
+dependencies = [
+  "pypandoc>=1.12",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+  "ruff>=0.1",
+]
+
+[project.scripts]
+sync-my-zettels = "sync_my_zettels.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/MooersLab/sync-my-zettels"
+Issues = "https://github.com/MooersLab/sync-my-zettels/issues"
+
+[tool.setuptools.packages.find]
+include = ["sync_my_zettels*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
