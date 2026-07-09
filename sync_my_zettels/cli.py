@@ -22,7 +22,18 @@ from .config import (
     DEFAULT_EMACS_SOCKET,
     DEFAULT_AUTOSLIP_ROAM_EL,
 )
-from . import inventory, roots, matching, assign, assign_apply, normalize, port, links, verify
+from . import (
+    inventory,
+    roots,
+    matching,
+    assign,
+    assign_apply,
+    normalize,
+    port,
+    links,
+    wire_backlinks,
+    verify,
+)
 
 
 PHASES: dict[str, Callable[[Config], dict]] = {
@@ -34,6 +45,7 @@ PHASES: dict[str, Callable[[Config], dict]] = {
     "normalize": normalize.run,
     "port": port.run,
     "repair-links": links.run,
+    "wire-backlinks": wire_backlinks.run,
     "verify": verify.run,
 }
 
@@ -171,6 +183,14 @@ def _print_summary(phase: str, result: dict, config: Config) -> None:
             f"broken id-link count: {len(result['broken_id_links'])}; "
             f"link-rewrite plan size: {len(result['plan'])}"
         )
+    elif phase == "wire-backlinks":
+        if result["apply"]:
+            print(
+                f"wire-backlinks: wired {len(result['wired'])}, "
+                f"skipped {len(result['skipped'])}"
+            )
+        else:
+            print(f"wire-backlinks dry run: {len(result['paths'])} notes to wire")
     elif phase == "verify":
         print(
             "verify: "
