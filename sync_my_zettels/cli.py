@@ -96,6 +96,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="path to autoslip-roam.el loaded by the normalize apply phase",
     )
     parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="port only: convert at most N notes per direction (0 = all). Use for a pilot.",
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="apply the phase's proposed changes (default: dry run)",
@@ -119,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         apply=args.apply,
         emacs_socket=args.emacs_socket,
         autoslip_roam_el=args.autoslip_roam_el,
+        limit=args.limit,
     )
     try:
         result = PHASES[args.phase](config)
@@ -176,8 +183,13 @@ def _print_summary(phase: str, result: dict, config: Config) -> None:
                 f"({len(result['skipped'])} unsupported)"
             )
     elif phase == "port":
-        action = "would port" if not result["apply"] else "ported"
-        print(f"{action} {len(result['plan'])} notes")
+        if result["apply"]:
+            print(
+                f"port: wrote {len(result['applied'])}, skipped {len(result['skipped'])} "
+                f"(.port-review suffix; neither vault indexes them)"
+            )
+        else:
+            print(f"port dry run: {len(result['plan'])} notes would be ported")
     elif phase == "repair-links":
         print(
             f"broken id-link count: {len(result['broken_id_links'])}; "

@@ -39,6 +39,10 @@ class Config:
     apply: bool = False
     emacs_socket: str = DEFAULT_EMACS_SOCKET
     autoslip_roam_el: Path = DEFAULT_AUTOSLIP_ROAM_EL
+    # port: cap how many notes are converted per direction (0 = no cap).
+    # A pilot run uses a small limit so pandoc fidelity can be reviewed
+    # before ~2000 notes are written across two vaults.
+    limit: int = 0
 
     def inventory_path(self) -> Path:
         return self.state_dir / "inventory.json"
