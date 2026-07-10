@@ -1,6 +1,6 @@
 # sync-my-zettels
 
-Reconcile an Obsidian vault and an org-roam zettelkasten under a shared folgezettel hierarchy.
+Reconcile an Obsidian vault and an org-roam zettelkasten under a shared folgezettel hierarchy. This is a Claude plugin.
 
 ## Status
 
