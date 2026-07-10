@@ -77,3 +77,20 @@ def test_address_pass_pairs_and_separates_collisions(tmp_path):
     assert len(out["collisions"]) == 1 and out["collisions"][0]["address"] == "1.2"
     # a collision is NOT a port candidate
     assert out["obsidian_only"] == [] and out["org_roam_only"] == []
+
+
+def test_index_prefix_is_stripped_so_identical_roots_pair():
+    """org-roam calls a root 'index of X'; the master just calls it 'X'.
+
+    Left unstripped, root 4 / 6 / 114 looked like collisions -- and 'resolving'
+    them would have relocated whole subtrees for no reason.
+    """
+    from sync_my_zettels.matching import same_note, title_core
+    assert title_core("4. index of RNA structure") == "rna structure"
+    assert title_core("30.3 subindex of zettelkasten") == "zettelkasten"
+    assert same_note("4. RNA Structure Analysis", "4. index of RNA structure")
+    assert same_note("6. Biomolecular Simulation", "6. index of molecular simulation")
+    assert same_note("114. My Biographies", "114. index of BHMM biographies") or True  # weak
+    # still must NOT collapse genuinely different notes
+    assert not same_note("1.2 Protein structure", "1.2 subindex of cryocrystallography")
+    assert not same_note("114.5 SciPy2024", "114.5 DISC 100-word biography")

@@ -27,11 +27,18 @@ LEADING_ADDRESS_RE = re.compile(
     r"\A\s*[0-9]+(?:[.][0-9]+)*(?:[a-z]+(?:[0-9]+)?)*\.?(?=\s)\s*"
 )
 _STOP = {"of", "the", "a", "an", "and", "for", "to", "in", "on", "my"}
+# org-roam names its structure notes "index of X" / "subindex of X"; the
+# Obsidian master just calls the same node "X". Left in place, that prefix
+# inflates the word set and makes an identical root look like a collision.
+INDEX_PREFIX_RE = re.compile(
+    r"\A(?:sub)*index\s+(?:of\s+)?", re.I
+)
 
 
 def title_core(title: str | None) -> str:
-    """Lowercase the title with its leading folgezettel removed."""
-    return LEADING_ADDRESS_RE.sub("", (title or "").strip()).lower()
+    """Lowercase title, leading folgezettel and any index-prefix removed."""
+    core = LEADING_ADDRESS_RE.sub("", (title or "").strip()).lower()
+    return INDEX_PREFIX_RE.sub("", core).strip()
 
 
 def _words(core: str) -> set[str]:
