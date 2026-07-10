@@ -116,7 +116,10 @@ def scan_obsidian(vault: Path) -> Iterable[NoteRecord]:
         body = _read_text(path)
         stem = path.stem
         title = _obsidian_title(body, stem)
-        fz = extract_from_title(title) or extract_from_title(stem)
+        # The Obsidian vault carries the folgezettel in the FILENAME
+        # ("1.12c5 Assembling Table 2.md"); its YAML/H1 title usually omits
+        # the address. Read the filename first, fall back to the title.
+        fz = extract_from_title(stem) or extract_from_title(title)
         fz = canonicalize_root(fz)
         yield NoteRecord(
             path=str(path),
@@ -143,8 +146,10 @@ def scan_org_roam(vault: Path) -> Iterable[NoteRecord]:
         title = _org_title(body, stem)
         # org-roam filenames are timestamp-slugged (e.g. ``20240101000001-foo.org``)
         # so the filename stem never carries a folgezettel address. Only the
-        # ``#+title:`` keyword is authoritative.
-        fz = extract_from_title(title)
+        # ``#+title:`` keyword is authoritative -- read it directly rather than
+        # via `title`, which falls back to the stem when the keyword is absent.
+        title_keyword = TITLE_KEYWORD_RE.search(body)
+        fz = extract_from_title(title_keyword.group(1).strip()) if title_keyword else None
         fz = canonicalize_root(fz)
         id_match = ID_PROPERTY_RE.search(body)
         yield NoteRecord(

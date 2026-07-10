@@ -12,8 +12,13 @@ import re
 from typing import Optional
 
 
+# A folgezettel is the LEADING token of the string and is followed by
+# whitespace (or ends the string). Anchoring matters: a permissive search
+# turns any number anywhere into a bogus address -- "Assembling Table 2"
+# would yield "2.", "310-helix" would yield "310.", and an org-roam
+# timestamp stem "20210316104407-foo" would yield "20210316104407.".
 FOLGEZETTEL_RE = re.compile(
-    r"\b([0-9]+(?:[.][0-9]+)*(?:[a-z]+(?:[0-9]+)?)*)(?:[^a-z0-9]|$)"
+    r"\A\s*([0-9]+(?:[.][0-9]+)*(?:[a-z]+(?:[0-9]+)?)*\.?)(?=\s|\Z)"
 )
 ROOT_RE = re.compile(r"\A[0-9]+\.?\Z")
 BARE_ROOT_RE = re.compile(r"\A[0-9]+\Z")
@@ -37,17 +42,18 @@ def canonicalize_root(address: Optional[str]) -> Optional[str]:
 
 
 def extract_from_title(title: Optional[str]) -> Optional[str]:
-    """Pull the folgezettel address out of a note TITLE.
+    """Pull the folgezettel address off the FRONT of a note TITLE.
 
-    Returns the canonical form (trailing-period for roots) or None when
-    the title has no folgezettel prefix.
+    The address must be the leading token and be followed by whitespace
+    (or end the string). Returns the canonical form (trailing period for
+    roots), or None when the title carries no folgezettel prefix.
     """
     if not title:
         return None
-    match = FOLGEZETTEL_RE.search(title)
+    match = FOLGEZETTEL_RE.match(title)
     if not match:
         return None
-    return canonicalize_root(match.group(1))
+    return canonicalize_root(match.group(1).rstrip("."))
 
 
 def parse_parent(address: Optional[str]) -> Optional[str]:
