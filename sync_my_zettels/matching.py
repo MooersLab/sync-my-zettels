@@ -67,7 +67,23 @@ def same_note(a_title: str | None, b_title: str | None) -> bool:
     return len(wa & wb) / len(wa | wb) >= 0.6
 
 
+def load_pair_overrides(config: Config) -> set[str]:
+    """Addresses a human has ruled to be the SAME node in both vaults.
+
+    Some pairs are beyond any heuristic -- Obsidian's "114. My Biographies"
+    is org-roam's "114. index of BHMM biographies". Rather than loosen the
+    similarity threshold (which would silently swallow real conflicts), the
+    decision is recorded explicitly and auditably here.
+    """
+    path = config.state_dir / "pair-overrides.json"
+    if not path.exists():
+        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return set(data.get("same_node_addresses", []))
+
+
 def run(config: Config) -> dict:
+    overrides = load_pair_overrides(config)
     inv_path = config.inventory_path()
     if not inv_path.exists():
         raise FileNotFoundError(
@@ -129,7 +145,10 @@ def run(config: Config) -> dict:
             ambiguous.append({"key": addr, "obsidian": left, "org_roam": right})
             continue
         o, g = left[0], right[0]
-        if same_note(o.get("title"), g.get("title")):
+        if addr in overrides:
+            matched.append({"key": addr, "obsidian": o, "org_roam": g,
+                            "matched_by": "manual-override"})
+        elif same_note(o.get("title"), g.get("title")):
             matched.append({"key": addr, "obsidian": o, "org_roam": g,
                             "matched_by": "address"})
         else:

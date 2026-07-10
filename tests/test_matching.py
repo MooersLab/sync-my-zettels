@@ -94,3 +94,23 @@ def test_index_prefix_is_stripped_so_identical_roots_pair():
     # still must NOT collapse genuinely different notes
     assert not same_note("1.2 Protein structure", "1.2 subindex of cryocrystallography")
     assert not same_note("114.5 SciPy2024", "114.5 DISC 100-word biography")
+
+
+def test_manual_pair_override_forces_a_match(tmp_path):
+    """Some pairs defeat every heuristic; a human ruling is recorded explicitly."""
+    import json
+    from sync_my_zettels.config import Config
+    from sync_my_zettels import matching
+    recs = [
+        {"path": "/o/a.md", "side": "obsidian", "title": "114. My Biographies",
+         "normalized_title": "mybiographies", "folgezettel": "114."},
+        {"path": "/g/a.org", "side": "org-roam", "title": "114. index of BHMM biographies",
+         "normalized_title": "indexofbhmmbiographies", "folgezettel": "114."},
+    ]
+    (tmp_path / "inventory.json").write_text(json.dumps({"records": recs}))
+    cfg = Config(state_dir=tmp_path)
+    assert len(matching.run(cfg)["collisions"]) == 1        # heuristic says conflict
+    (tmp_path / "pair-overrides.json").write_text(json.dumps({"same_node_addresses": ["114."]}))
+    out = matching.run(cfg)
+    assert out["collisions"] == []
+    assert out["matched"][0]["matched_by"] == "manual-override"
