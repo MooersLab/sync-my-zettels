@@ -17,10 +17,47 @@ passes can bolt on content-hash fallback and a fuzzy title scorer.
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
 from .config import Config
+
+LEADING_ADDRESS_RE = re.compile(
+    r"\A\s*[0-9]+(?:[.][0-9]+)*(?:[a-z]+(?:[0-9]+)?)*\.?(?=\s)\s*"
+)
+_STOP = {"of", "the", "a", "an", "and", "for", "to", "in", "on", "my"}
+
+
+def title_core(title: str | None) -> str:
+    """Lowercase the title with its leading folgezettel removed."""
+    return LEADING_ADDRESS_RE.sub("", (title or "").strip()).lower()
+
+
+def _words(core: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", core) if w not in _STOP}
+
+
+def same_note(a_title: str | None, b_title: str | None) -> bool:
+    """Do two notes sharing an address describe the SAME note?
+
+    The two vaults word the same node differently -- Obsidian's
+    "105. Lectures" is org-roam's "105. index of Lectures". Treating those
+    as a collision would move a note that never needed moving. Containment
+    or a strong word overlap means same note; anything else is a genuine
+    conflict (Obsidian "1.2 Protein structure" vs org-roam "1.2 subindex of
+    cryocrystallography").
+    """
+    a, b = title_core(a_title), title_core(b_title)
+    if not a or not b:
+        return False
+    sa, sb = re.sub(r"[^a-z0-9]", "", a), re.sub(r"[^a-z0-9]", "", b)
+    if len(min(sa, sb, key=len)) >= 4 and (sa in sb or sb in sa):
+        return True
+    wa, wb = _words(a), _words(b)
+    if not wa or not wb:
+        return False
+    return len(wa & wb) / len(wa | wb) >= 0.6
 
 
 def run(config: Config) -> dict:
@@ -57,14 +94,51 @@ def run(config: Config) -> dict:
             ambiguous.append({"key": key, "obsidian": left, "org_roam": right})
             continue
         if left and right:
-            matched.append({"key": key, "obsidian": left[0], "org_roam": right[0]})
+            matched.append({"key": key, "obsidian": left[0], "org_roam": right[0],
+                            "matched_by": "title"})
         elif left:
             obsidian_only.append(left[0])
         elif right:
             org_roam_only.append(right[0])
 
+    # ---- second pass: pair the leftovers by folgezettel address -------------
+    # Two notes at the same address are either the same node worded differently
+    # (pair them) or a genuine conflict (a collision that must be resolved
+    # before either side is ported).
+    collisions: list[dict] = []
+    obs_by_addr = defaultdict(list)
+    org_by_addr = defaultdict(list)
+    for r in obsidian_only:
+        if r.get("folgezettel"):
+            obs_by_addr[r["folgezettel"]].append(r)
+    for r in org_roam_only:
+        if r.get("folgezettel"):
+            org_by_addr[r["folgezettel"]].append(r)
+
+    paired_obs, paired_org = set(), set()
+    for addr in sorted(set(obs_by_addr) & set(org_by_addr)):
+        left, right = obs_by_addr[addr], org_by_addr[addr]
+        if len(left) != 1 or len(right) != 1:
+            ambiguous.append({"key": addr, "obsidian": left, "org_roam": right})
+            continue
+        o, g = left[0], right[0]
+        if same_note(o.get("title"), g.get("title")):
+            matched.append({"key": addr, "obsidian": o, "org_roam": g,
+                            "matched_by": "address"})
+        else:
+            collisions.append({"address": addr, "obsidian": o, "org_roam": g})
+        paired_obs.add(o["path"])
+        paired_org.add(g["path"])
+
+    # Notes that paired (or collided) on address are no longer "only" on a side.
+    # Keeping collisions out of the port buckets means port can never write a
+    # note whose address still means two different things.
+    obsidian_only = [r for r in obsidian_only if r["path"] not in paired_obs]
+    org_roam_only = [r for r in org_roam_only if r["path"] not in paired_org]
+
     payload = {
         "version": 1,
+        "collisions": collisions,
         "matched": matched,
         "obsidian_only": obsidian_only,
         "org_roam_only": org_roam_only,

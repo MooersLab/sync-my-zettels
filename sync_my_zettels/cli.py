@@ -153,7 +153,8 @@ def _print_summary(phase: str, result: dict, config: Config) -> None:
             f"{len(result['matched'])} matched, "
             f"{len(result['obsidian_only'])} obsidian-only, "
             f"{len(result['org_roam_only'])} org-roam-only, "
-            f"{len(result['ambiguous'])} ambiguous"
+            f"{len(result['ambiguous'])} ambiguous, "
+            f"{len(result.get('collisions', []))} collisions"
         )
     elif phase == "assign":
         print(f"generated {len(result['proposals'])} assignment proposals")
