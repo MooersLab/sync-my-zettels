@@ -124,9 +124,29 @@ def title_with_address(title: str, address: Optional[str]) -> str:
     return f"{address} {core}".strip()
 
 
+# A filename component must fit the filesystem limit (255 bytes on macOS/ext4).
+# Leave headroom for the '.md' extension and the '.port-review' staging suffix.
+MAX_OBSIDIAN_STEM = 200
+
+
 def obsidian_filename(title: str) -> str:
-    """Obsidian's convention is '<address> <title>.md'; the title carries both."""
-    return f"{safe_filename(title)}.md"
+    """Obsidian's convention is '<address> <title>.md'; the title carries both.
+
+    A long title (author lists, verbose literature-note titles) can exceed the
+    filesystem's per-component byte limit, which aborts the write. Truncate the
+    stem to fit, but keep any leading folgezettel address whole -- the address
+    is load-bearing for the hierarchy; the trailing prose is not.
+    """
+    stem = safe_filename(title)
+    if len(stem.encode("utf-8")) <= MAX_OBSIDIAN_STEM:
+        return f"{stem}.md"
+    match = LEADING_ADDRESS_RE.match(title or "")
+    address = safe_filename(match.group(0)).strip() if match else ""
+    core = safe_filename(strip_leading_address(title))
+    budget = MAX_OBSIDIAN_STEM - (len(address.encode("utf-8")) + 1 if address else 0)
+    core = core.encode("utf-8")[: max(budget, 1)].decode("utf-8", "ignore").strip()
+    stem = f"{address} {core}".strip() if address else (core or "note")
+    return f"{stem}.md"
 
 
 def org_filename(timestamp: str, address: Optional[str], title: str) -> str:

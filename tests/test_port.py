@@ -47,6 +47,20 @@ def test_filenames_follow_each_vault_convention():
     assert obsidian_filename("1.14 Quantum Crystallography") == "1.14 Quantum Crystallography.md"
     # path separators must never leak into a filename
     assert "/" not in obsidian_filename("7/3 Docking")
+
+
+def test_obsidian_filename_bounds_length_but_keeps_the_address():
+    """A verbose title (author list) once produced a >255-byte filename that
+    aborted the write. The stem must fit, with the leading address intact."""
+    from sync_my_zettels.port import obsidian_filename, MAX_OBSIDIAN_STEM
+    long_title = "4.13 Pujari, Narsimha and Saundh, Stephanie L and Acquah, Francis A " + "and coauthor " * 40
+    name = obsidian_filename(long_title)
+    assert name.endswith(".md")
+    assert len(name[:-3].encode("utf-8")) <= MAX_OBSIDIAN_STEM
+    # the folgezettel survives truncation; it is what places the note
+    assert name.startswith("4.13 ")
+    # a short title is returned untouched
+    assert obsidian_filename("10.2 SEC SAXS") == "10.2 SEC SAXS.md"
     # org-roam: '<timestamp>-<addr_slug>_<slug>.org'
     assert org_filename("20240101000001", "1.14", "Quantum Crystallography") == (
         "20240101000001-1_14_quantum_crystallography.org")
