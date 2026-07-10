@@ -2,6 +2,10 @@
 
 Reconcile an Obsidian vault and an org-roam zettelkasten under a shared folgezettel hierarchy.
 
+## Status
+
+Still under development. Not ready yet for human consumption.
+
 ## What it does
 
 This tool keeps two zettelkastens in step:
