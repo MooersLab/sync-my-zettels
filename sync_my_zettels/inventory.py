@@ -28,6 +28,12 @@ WIKILINK_RE = re.compile(r"\[\[([^\[\]|#]+?)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
 ID_LINK_RE = re.compile(r"\[\[id:([0-9a-fA-F-]+)\]")
 NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
 
+# Directories under the org-roam vault that hold infrastructure, not zettels,
+# and must never enter the sync. ``templates`` holds org-capture templates;
+# the ``-import`` dirs are the port's own staging (also excluded by extension,
+# but named here so a stray ``.org`` inside them is skipped too).
+IGNORE_DIRS = {"templates", "obsidian-import", "org-roam-import", "venv", ".venv", "ltximg"}
+
 
 @dataclass
 class NoteRecord:
@@ -140,6 +146,8 @@ def scan_org_roam(vault: Path) -> Iterable[NoteRecord]:
         return
     for path in sorted(vault.rglob("*.org")):
         if path.name.startswith("."):
+            continue
+        if IGNORE_DIRS.intersection(path.parts):
             continue
         body = _read_text(path)
         stem = path.stem

@@ -35,6 +35,22 @@ def test_inventory_canonicalizes_roots(config):
     assert fz_by_path["20240101000002-diffraction.org"] == "1.1"
 
 
+def test_inventory_skips_infrastructure_dirs(tmp_path):
+    """templates/ holds org-capture templates, not zettels; never inventory them."""
+    org = tmp_path / "org"
+    (org / "templates").mkdir(parents=True)
+    (org / "20240101000009-real.org").write_text(
+        "#+title: 5.1 Real note\n", encoding="utf-8")
+    (org / "templates" / "zhub-template.org").write_text(
+        "#+title: Template\n", encoding="utf-8")
+    cfg = Config(obsidian_vault=tmp_path / "none", org_roam_vault=org,
+                 state_dir=tmp_path)
+    payload = inventory.run(cfg)
+    names = {Path(r["path"]).name for r in payload["records"]}
+    assert "20240101000009-real.org" in names
+    assert "zhub-template.org" not in names
+
+
 def test_inventory_reports_no_folgezettel_for_orphan(config):
     payload = inventory.run(config)
     orphan = next(
