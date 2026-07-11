@@ -28,11 +28,24 @@ WIKILINK_RE = re.compile(r"\[\[([^\[\]|#]+?)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
 ID_LINK_RE = re.compile(r"\[\[id:([0-9a-fA-F-]+)\]")
 NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
 
-# Directories under the org-roam vault that hold infrastructure, not zettels,
-# and must never enter the sync. ``templates`` holds org-capture templates;
-# the ``-import`` dirs are the port's own staging (also excluded by extension,
-# but named here so a stray ``.org`` inside them is skipped too).
-IGNORE_DIRS = {"templates", "obsidian-import", "org-roam-import", "venv", ".venv", "ltximg"}
+# Directories in either vault that hold infrastructure, not zettels, and must
+# never enter the sync. Template dirs hold capture templates; the ``-import``
+# dirs are the port's own staging / promoted copies (matching a promoted copy
+# against its own org-roam source would be circular); canvases are Obsidian
+# canvas files, not notes; venv/ltximg are build artefacts.
+IGNORE_DIRS = {
+    "templates", "40-Templates", "canvases",
+    "obsidian-import", "org-roam-import",
+    "venv", ".venv", "ltximg",
+}
+
+
+def _in_ignored_dir(path: Path, vault: Path) -> bool:
+    """True if PATH lies under an ignored or hidden directory of VAULT."""
+    rel_parts = path.relative_to(vault).parts[:-1]  # directory components only
+    if any(part.startswith(".") for part in rel_parts):
+        return True
+    return bool(IGNORE_DIRS.intersection(rel_parts))
 
 
 @dataclass
@@ -113,11 +126,19 @@ def _org_outgoing(body: str) -> list[str]:
 
 
 def scan_obsidian(vault: Path) -> Iterable[NoteRecord]:
-    """Yield a NoteRecord for every top-level ``*.md`` in VAULT."""
+    """Yield a NoteRecord for every ``*.md`` under VAULT (recursive).
+
+    The vault organises notes into subdirectories (00-Inbox, 10-Literature-
+    Notes, 70-unindexed, ...), so a top-level glob missed most of them and
+    made every note there invisible to matching. Recurse, skipping infra,
+    template, import, and hidden directories.
+    """
     if not vault.exists():
         return
-    for path in sorted(vault.glob("*.md")):
+    for path in sorted(vault.rglob("*.md")):
         if path.name.startswith("."):
+            continue
+        if _in_ignored_dir(path, vault):
             continue
         body = _read_text(path)
         stem = path.stem
@@ -147,7 +168,7 @@ def scan_org_roam(vault: Path) -> Iterable[NoteRecord]:
     for path in sorted(vault.rglob("*.org")):
         if path.name.startswith("."):
             continue
-        if IGNORE_DIRS.intersection(path.parts):
+        if _in_ignored_dir(path, vault):
             continue
         body = _read_text(path)
         stem = path.stem

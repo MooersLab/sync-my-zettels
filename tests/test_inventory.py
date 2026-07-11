@@ -51,6 +51,29 @@ def test_inventory_skips_infrastructure_dirs(tmp_path):
     assert "zhub-template.org" not in names
 
 
+def test_scan_obsidian_recurses_into_note_subdirs_but_skips_infra(tmp_path):
+    """The vault files notes into subdirs; a top-level glob missed them all.
+
+    Recurse into real note dirs (00-Inbox, 70-unindexed) but never into
+    template, import, or hidden infrastructure dirs."""
+    v = tmp_path / "vault"
+    (v / "70-unindexed").mkdir(parents=True)
+    (v / "40-Templates").mkdir()
+    (v / ".obsidian").mkdir()
+    (v / "org-roam-import").mkdir()
+    (v / "1.1 Root note.md").write_text("body\n", encoding="utf-8")
+    (v / "70-unindexed" / "5.2 Deep note.md").write_text("body\n", encoding="utf-8")
+    (v / "40-Templates" / "note template.md").write_text("body\n", encoding="utf-8")
+    (v / ".obsidian" / "plugin note.md").write_text("body\n", encoding="utf-8")
+    (v / "org-roam-import" / "9.9 Imported.md").write_text("body\n", encoding="utf-8")
+    names = {Path(r.path).name for r in inventory.scan_obsidian(v)}
+    assert "1.1 Root note.md" in names          # top level still seen
+    assert "5.2 Deep note.md" in names          # subdir now seen
+    assert "note template.md" not in names      # template dir skipped
+    assert "plugin note.md" not in names        # hidden dir skipped
+    assert "9.9 Imported.md" not in names       # import dir skipped
+
+
 def test_inventory_reports_no_folgezettel_for_orphan(config):
     payload = inventory.run(config)
     orphan = next(
