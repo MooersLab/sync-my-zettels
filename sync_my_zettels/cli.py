@@ -148,13 +148,16 @@ def _print_summary(phase: str, result: dict, config: Config) -> None:
         n = len(result["roots"])
         print(f"parsed {n} root entries from {result['source']}")
     elif phase == "match":
+        ap = result.get("already_ported", {})
+        ap_n = len(ap.get("org_roam", [])) + len(ap.get("obsidian", []))
         print(
             "match summary: "
             f"{len(result['matched'])} matched, "
             f"{len(result['obsidian_only'])} obsidian-only, "
             f"{len(result['org_roam_only'])} org-roam-only, "
             f"{len(result['ambiguous'])} ambiguous, "
-            f"{len(result.get('collisions', []))} collisions"
+            f"{len(result.get('collisions', []))} collisions, "
+            f"{ap_n} already-ported"
         )
     elif phase == "assign":
         print(f"generated {len(result['proposals'])} assignment proposals")

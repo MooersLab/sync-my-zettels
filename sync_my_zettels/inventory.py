@@ -27,6 +27,13 @@ MD_H1_RE = re.compile(r"^\s*#\s+(.+?)\s*$", re.MULTILINE)
 WIKILINK_RE = re.compile(r"\[\[([^\[\]|#]+?)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
 ID_LINK_RE = re.compile(r"\[\[id:([0-9a-fA-F-]+)\]")
 NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
+# org-roam names its structure notes "index of X" / "subindex of X"; Obsidian
+# names the same root just "X". Stripping this prefix here (as the address-pass
+# matcher already does in matching.title_core) lets the two vaults' root notes
+# match on topic in the FIRST pass, instead of relying on the fragile 1:1
+# address pass -- which is what let "1. Crystallography" and "1. index of
+# crystallography" drift into duplicates. Single definition; matching imports it.
+INDEX_PREFIX_RE = re.compile(r"\A(?:sub)*index\s+(?:of\s+)?", re.IGNORECASE)
 
 # Directories in either vault that hold infrastructure, not zettels, and must
 # never enter the sync. Template dirs hold capture templates; the ``-import``
@@ -79,6 +86,7 @@ def normalize_title(title: Optional[str]) -> str:
         "",
         title.strip(),
     )
+    stripped = INDEX_PREFIX_RE.sub("", stripped)
     return NORMALIZE_RE.sub("", stripped.lower())
 
 

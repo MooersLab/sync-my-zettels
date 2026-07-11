@@ -22,17 +22,19 @@ from collections import defaultdict
 from pathlib import Path
 
 from .config import Config
+from .folgezettel import extract_from_title, canonicalize_root
+# Shared with inventory.normalize_title so both matching passes normalize the
+# "index of X" prefix identically -- divergence here let "1. Crystallography"
+# and "1. index of crystallography" drift into duplicates.
+from .inventory import INDEX_PREFIX_RE
 
 LEADING_ADDRESS_RE = re.compile(
     r"\A\s*[0-9]+(?:[.][0-9]+)*(?:[a-z]+(?:[0-9]+)?)*\.?(?=\s)\s*"
 )
+# A promoted org->Obsidian note records its source org-roam node's id in YAML.
+PROMO_ORG_ID_RE = re.compile(r"^org_id:[ \t]*(\S+)", re.MULTILINE)
+PROMO_ORG_TITLE_RE = re.compile(r"^#\+title:[ \t]*(.+)$", re.MULTILINE | re.IGNORECASE)
 _STOP = {"of", "the", "a", "an", "and", "for", "to", "in", "on", "my"}
-# org-roam names its structure notes "index of X" / "subindex of X"; the
-# Obsidian master just calls the same node "X". Left in place, that prefix
-# inflates the word set and makes an identical root look like a collision.
-INDEX_PREFIX_RE = re.compile(
-    r"\A(?:sub)*index\s+(?:of\s+)?", re.I
-)
 
 
 def title_core(title: str | None) -> str:
@@ -80,6 +82,48 @@ def load_pair_overrides(config: Config) -> set[str]:
         return set()
     data = json.loads(path.read_text(encoding="utf-8"))
     return set(data.get("same_node_addresses", []))
+
+
+def scan_promotions(config: Config) -> tuple[set[str], set[str]]:
+    """Identify notes already ported into the import dirs, keyed to their source.
+
+    A promoted (or still-staged) note in an import directory is proof its
+    source was already ported. Without this, a later pipeline run sees the
+    source as unmatched and ports it AGAIN -- the exact bug that produced the
+    70-unindexed/ duplication. Returns two sets of source identities:
+
+    * org-roam node ids whose Obsidian copy exists (``org-roam-import/*``,
+      which carries ``org_id:`` in YAML);
+    * folgezettel addresses whose org-roam copy exists (``obsidian-import/*``,
+      which carries the address in ``#+title:``).
+    """
+    ported_org_ids: set[str] = set()
+    ported_addresses: set[str] = set()
+
+    obs_import = config.obsidian_vault / "org-roam-import"
+    if obs_import.is_dir():
+        for p in obs_import.iterdir():
+            if not p.is_file():
+                continue
+            m = PROMO_ORG_ID_RE.search(p.read_text(encoding="utf-8", errors="replace"))
+            if m:
+                ported_org_ids.add(m.group(1))
+
+    org_import = config.org_roam_vault / "obsidian-import"
+    if org_import.is_dir():
+        for p in org_import.iterdir():
+            if not p.is_file():
+                continue
+            mt = PROMO_ORG_TITLE_RE.search(
+                p.read_text(encoding="utf-8", errors="replace")
+            )
+            if mt:
+                fz = extract_from_title(mt.group(1).strip())
+                addr = canonicalize_root(fz) if fz else None
+                if addr:
+                    ported_addresses.add(addr)
+
+    return ported_org_ids, ported_addresses
 
 
 def run(config: Config) -> dict:
@@ -162,6 +206,23 @@ def run(config: Config) -> dict:
     obsidian_only = [r for r in obsidian_only if r["path"] not in paired_obs]
     org_roam_only = [r for r in org_roam_only if r["path"] not in paired_org]
 
+    # ---- third pass: drop notes already ported into the import dirs ---------
+    # Their counterpart already exists (promoted or staged), so porting them
+    # again would duplicate. Move them to an ``already_ported`` bucket instead
+    # of leaving them in the port candidates.
+    ported_org_ids, ported_addresses = scan_promotions(config)
+    already_ported_org = [
+        r for r in org_roam_only if r.get("org_roam_id") in ported_org_ids
+    ]
+    already_ported_obs = [
+        r for r in obsidian_only
+        if r.get("folgezettel") and canonicalize_root(r["folgezettel"]) in ported_addresses
+    ]
+    ported_org_paths = {r["path"] for r in already_ported_org}
+    ported_obs_paths = {r["path"] for r in already_ported_obs}
+    org_roam_only = [r for r in org_roam_only if r["path"] not in ported_org_paths]
+    obsidian_only = [r for r in obsidian_only if r["path"] not in ported_obs_paths]
+
     payload = {
         "version": 1,
         "collisions": collisions,
@@ -169,6 +230,10 @@ def run(config: Config) -> dict:
         "obsidian_only": obsidian_only,
         "org_roam_only": org_roam_only,
         "ambiguous": ambiguous,
+        "already_ported": {
+            "org_roam": already_ported_org,
+            "obsidian": already_ported_obs,
+        },
     }
     config.ensure_state_dir()
     config.matches_path().write_text(

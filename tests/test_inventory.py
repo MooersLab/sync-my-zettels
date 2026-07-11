@@ -117,3 +117,23 @@ def test_org_roam_address_only_from_title_keyword(tmp_path):
     recs = {r.path.split("/")[-1]: r for r in scan_org_roam(v)}
     assert recs["20210316104407-https_www_bing.org"].folgezettel is None
     assert recs["20240101000001-quantum.org"].folgezettel == "1.14"
+
+
+def test_normalize_title_strips_index_prefix_like_title_core():
+    """The two matching passes must normalize identically, or a root worded
+    'X' in one vault and 'index of X' in the other drifts into a duplicate.
+    Regression for the 1. Crystallography / 1. index of crystallography split.
+    """
+    from sync_my_zettels.inventory import normalize_title
+    from sync_my_zettels.matching import title_core
+    pairs = [
+        ("1. Crystallography", "1. index of crystallography"),
+        ("115. Protocols", "115. index of protocols"),
+        ("30. Knowledge Management", "subindex of knowledge management"),
+    ]
+    for a, b in pairs:
+        assert normalize_title(a) == normalize_title(b), (a, b)
+        # and the two functions agree with each other
+        assert normalize_title(a) == title_core(a).replace(" ", "").replace("-", "")
+    # a genuinely different topic must NOT collapse together
+    assert normalize_title("1. Crystallography") != normalize_title("2. Protein Chemistry")

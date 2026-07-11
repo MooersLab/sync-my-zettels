@@ -114,3 +114,20 @@ def test_manual_pair_override_forces_a_match(tmp_path):
     out = matching.run(cfg)
     assert out["collisions"] == []
     assert out["matched"][0]["matched_by"] == "manual-override"
+
+
+def test_scan_promotions_recognizes_already_ported_notes(tmp_path):
+    """A note already ported into an import dir must not be queued again."""
+    from sync_my_zettels.matching import scan_promotions
+    from sync_my_zettels.config import Config
+    obs = tmp_path / "obsidian"; org = tmp_path / "org"
+    (obs / "org-roam-import").mkdir(parents=True)
+    (org / "obsidian-import").mkdir(parents=True)
+    (obs / "org-roam-import" / "5.2 Note.md").write_text(
+        "---\ntitle: 5.2 Note\nsource: org-roam\norg_id: ABC-123\n---\n\nbody\n", encoding="utf-8")
+    (org / "obsidian-import" / "20240101-9_9_thing.org").write_text(
+        ":PROPERTIES:\n:ID:  X\n:END:\n#+title: 9.9 Thing\n\nbody\n", encoding="utf-8")
+    cfg = Config(obsidian_vault=obs, org_roam_vault=org, state_dir=tmp_path)
+    org_ids, addresses = scan_promotions(cfg)
+    assert "ABC-123" in org_ids
+    assert "9.9" in addresses
